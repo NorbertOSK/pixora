@@ -1,0 +1,40 @@
+[package]
+name = "pixora"
+version = "0.1.0"
+description = "Pixora — local image editor"
+authors = []
+edition = "2021"
+
+[lib]
+name = "pixora_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+image = { version = "0.25", features = ["jpeg", "png", "webp"] }
+base64 = { version = "0.22", features = ["alloc"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+kamadak_exif = { package = "kamadak-exif", version = "0.6.1" }
+tauri-plugin-opener = "2.5.3"
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+ort = { version = "2.0.0-rc.11", default-features = false, features = ["download-binaries", "ndarray", "tls-rustls"] }
+ndarray = "0.17"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
+dirs = "5"
+zip = "2"
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

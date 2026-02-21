@@ -1,0 +1,212 @@
+use base64::{engine::general_purpose, Engine as _};
+use image::{imageops::FilterType, DynamicImage, ImageFormat, RgbaImage};
+use ndarray::Array;
+use ort::session::builder::GraphOptimizationLevel;
+use ort::session::Session;
+use ort::value::TensorRef;
+use serde::Serialize;
+use std::io::Cursor;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::sync::OnceLock;
+use tauri::Emitter;
+
+use super::resize::decode_data_url;
+
+const IMGLY_BASE: &str = "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/";
+const MODEL_KEY: &str = "/models/isnet_quint8";
+pub const RESOLUTION: u32 = 1024;
+pub const MEAN: f32 = 128.0;
+pub const STD: f32 = 256.0;
+
+// Option so a failed download can be retried without restarting the app.
+static SESSION: Mutex<Option<Session>> = Mutex::new(None);
+static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+pub fn set_app_handle(handle: tauri::AppHandle) {
+    let _ = APP_HANDLE.set(handle);
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveBgResult {
+    pub data_url: String,
+}
+
+#[derive(serde::Deserialize)]
+struct ResourceChunk {
+    name: String,
+    offsets: [u64; 2],
+}
+
+#[derive(serde::Deserialize)]
+struct ResourceEntry {
+    chunks: Vec<ResourceChunk>,
+    size: usize,
+}
+
+fn model_path() -> Result<PathBuf, String> {
+    let dir = dirs::data_local_dir()
+        .or_else(dirs::cache_dir)
+        .ok_or_else(|| "Could not determine cache directory".to_string())?;
+    let model_dir = dir.join("pixora");
+    std::fs::create_dir_all(&model_dir).map_err(|e| e.to_string())?;
+    Ok(model_dir.join("isnet_quint8.onnx"))
+}
+
+fn download_model_chunked() -> Result<Vec<u8>, String> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resources_url = format!("{}resources.json", IMGLY_BASE);
+    let resp = client
+        .get(&resources_url)
+        .send()
+        .map_err(|e| format!("Failed to fetch resources.json: {}", e))?;
+    let resource_map: std::collections::HashMap<String, ResourceEntry> =
+        resp.json().map_err(|e| format!("Invalid resources.json: {}", e))?;
+
+    let entry = resource_map
+        .get(MODEL_KEY)
+        .ok_or_else(|| format!("Model {} not found in resources", MODEL_KEY))?;
+
+    let mut data = Vec::with_capacity(entry.size);
+    for chunk in &entry.chunks {
+        let chunk_url = format!("{}{}", IMGLY_BASE, chunk.name);
+        let chunk_resp = client
+            .get(&chunk_url)
+            .send()
+            .map_err(|e| format!("Failed to fetch chunk {}: {}", chunk.name, e))?;
+        let chunk_bytes = chunk_resp
+            .bytes()
+            .map_err(|e| format!("Failed to read chunk: {}", e))?;
+        let expected = (chunk.offsets[1] - chunk.offsets[0]) as usize;
+        if chunk_bytes.len() != expected {
+            return Err(format!(
+                "Chunk {} size mismatch: expected {}, got {}",
+                chunk.name, expected, chunk_bytes.len()
+            ));
+        }
+        data.extend_from_slice(&chunk_bytes);
+    }
+
+    if data.len() != entry.size {
+        return Err(format!(
+            "Model size mismatch: expected {}, got {}",
+            entry.size,
+            data.len()
+        ));
+    }
+
+    Ok(data)
+}
+
+fn create_session() -> Result<Session, String> {
+    let path = model_path()?;
+
+    let model_data = if path.exists() {
+        eprintln!("[pixora] Loading cached background removal model from {}", path.display());
+        std::fs::read(&path).map_err(|e| format!("Failed to read cached model: {}", e))?
+    } else {
+        eprintln!("[pixora] Background removal model not found — downloading (~42 MB)...");
+        if let Some(handle) = APP_HANDLE.get() {
+            let _ = handle.emit("bg-model-downloading", true);
+        }
+        let data = download_model_chunked()?;
+        std::fs::write(&path, &data).map_err(|e| format!("Failed to cache model: {}", e))?;
+        eprintln!("[pixora] Model downloaded and cached to {}", path.display());
+        if let Some(handle) = APP_HANDLE.get() {
+            let _ = handle.emit("bg-model-downloaded", true);
+        }
+        data
+    };
+
+    let session = Session::builder()
+        .map_err(|e: ort::Error| e.to_string())?
+        .with_optimization_level(GraphOptimizationLevel::Level1)
+        .map_err(|e: ort::Error| e.to_string())?
+        .commit_from_memory(&model_data)
+        .map_err(|e: ort::Error| format!("Failed to load ONNX model: {}", e))?;
+    Ok(session)
+}
+
+fn ensure_session() -> Result<std::sync::MutexGuard<'static, Option<Session>>, String> {
+    let mut guard = SESSION
+        .lock()
+        .map_err(|_| "Session mutex poisoned".to_string())?;
+    if guard.is_none() {
+        *guard = Some(create_session()?);
+    }
+    Ok(guard)
+}
+
+fn encode_png_data_url(img: &RgbaImage) -> Result<String, String> {
+    let mut buf = Cursor::new(Vec::new());
+    let dynamic = DynamicImage::ImageRgba8(img.clone());
+    dynamic
+        .write_to(&mut buf, ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    let b64 = general_purpose::STANDARD.encode(buf.into_inner());
+    Ok(format!("data:image/png;base64,{}", b64))
+}
+
+pub fn apply_remove_bg(img: DynamicImage) -> Result<DynamicImage, String> {
+    let mut guard = ensure_session()?;
+    let session = guard.as_mut().unwrap();
+
+    let rgba = img.to_rgba8();
+    let (orig_w, orig_h) = rgba.dimensions();
+
+    let resized = image::imageops::resize(&rgba, RESOLUTION, RESOLUTION, FilterType::Triangle);
+
+    let input_array = Array::from_shape_fn(
+        (1, 3, RESOLUTION as usize, RESOLUTION as usize),
+        |(_n, c, h, w)| {
+            let pixel = resized.get_pixel(w as u32, h as u32);
+            (pixel[c] as f32 - MEAN) / STD
+        },
+    );
+
+    let input_tensor = TensorRef::from_array_view(&input_array)
+        .map_err(|e: ort::Error| format!("Failed to create input tensor: {}", e))?;
+
+    let outputs = session
+        .run(ort::inputs![&*input_tensor])
+        .map_err(|e: ort::Error| format!("Inference failed: {}", e))?;
+
+    let output = &outputs[0];
+    let mask_view = output
+        .try_extract_array::<f32>()
+        .map_err(|e: ort::Error| format!("Failed to extract output: {}", e))?;
+
+    let mut result_rgba = resized.clone();
+    for y in 0..RESOLUTION {
+        for x in 0..RESOLUTION {
+            let alpha = if mask_view.ndim() == 4 {
+                mask_view[[0, 0, y as usize, x as usize]]
+            } else {
+                mask_view[[0, y as usize, x as usize]]
+            };
+            result_rgba.get_pixel_mut(x, y)[3] = (alpha.clamp(0.0, 1.0) * 255.0) as u8;
+        }
+    }
+
+    let output_img = image::imageops::resize(&result_rgba, orig_w, orig_h, FilterType::Triangle);
+    Ok(DynamicImage::ImageRgba8(output_img))
+}
+
+#[tauri::command]
+pub fn remove_background(data_url: String) -> Result<RemoveBgResult, String> {
+    let (img, _format) = decode_data_url(&data_url)?;
+    let result = apply_remove_bg(img)?;
+    let data_url = encode_png_data_url(&result.to_rgba8())?;
+    Ok(RemoveBgResult { data_url })
+}
+
+#[tauri::command]
+pub fn check_bg_model_exists() -> Result<bool, String> {
+    let path = model_path()?;
+    Ok(path.exists())
+}
