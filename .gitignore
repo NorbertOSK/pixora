@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Frontend build output
+dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Rust / Tauri build artifacts (large, platform-specific)
+src-tauri/target/
+*.pdb
+**/*.rs.bk
+
+# AI model cache — do NOT commit (~170 MB ONNX binaries)
+*.onnx
+*.ort
+
+# macOS
+.DS_Store
+**/.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Demo / test assets
+demo/
+
+# Claude Code local settings (user-specific, not project config)
+.claude/settings.local.json
+skills-lock.json
+.agent/
+.agents/
+.claude
