@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --obsidian-950: #09090b;
+    --prism-500: #6366f1;
+    --glass-border: rgba(255, 255, 255, 0.06);
+    --glass-border-light: rgba(0, 0, 0, 0.08);
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    @apply m-0 p-0 overflow-hidden select-none transition-colors duration-300;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Light mode */
+    @apply bg-slate-50 text-slate-900;
+  }
+
+  html.dark body {
+    background-color: var(--obsidian-950);
+    @apply text-slate-100;
+  }
+
+  /* Interaction States */
+  button:focus-visible, 
+  a:focus-visible {
+    @apply outline-none ring-2 ring-prism-500 ring-offset-2 ring-offset-white dark:ring-offset-obsidian-950;
+  }
+
+  input[type="range"] {
+    @apply accent-prism-500 cursor-pointer;
+  }
+
+  /* Refined scrollbar - Discrete and mechanical */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.3);
+  }
+
+  /* Typography Refinements */
+  h1, h2, h3, h4 {
+    @apply tracking-tight font-bold;
+  }
+
+  /* Component Primitives */
+  .surface-elevated {
+    @apply bg-white dark:bg-obsidian-900/50 border border-black/[0.04] dark:border-white/[0.04] shadow-sm;
+  }
+
+  .glass-panel {
+    @apply backdrop-blur-xl bg-white/80 dark:bg-obsidian-950/80 border-black/[0.06] dark:border-white/[0.06];
+  }
+}
+
