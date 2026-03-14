@@ -4,6 +4,18 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 use crate::error::{PixoraError, Result};
 
+fn ext_to_mime(ext: &str) -> &str {
+    match ext {
+        "png" => "image/png",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "gif" => "image/gif",
+        "tiff" | "tif" => "image/tiff",
+        "bmp" => "image/bmp",
+        _ => "image/jpeg",
+    }
+}
+
 #[tauri::command]
 pub async fn load_image_file(path: String) -> Result<String> {
     let path_buf = PathBuf::from(&path);
@@ -12,7 +24,7 @@ pub async fn load_image_file(path: String) -> Result<String> {
         .and_then(|e| e.to_str())
         .map(|e| e.to_lowercase());
 
-    let allowed = ["jpg", "jpeg", "png", "webp", "gif", "tiff", "tif", "bmp"];
+    let allowed = ["jpg", "jpeg", "png", "webp", "avif", "gif", "tiff", "tif", "bmp"];
     let ext_str = ext.as_deref().unwrap_or("");
     if !allowed.contains(&ext_str) {
         return Err(PixoraError::Process(format!("Formato no permitido: {:?}", ext)));
@@ -20,14 +32,7 @@ pub async fn load_image_file(path: String) -> Result<String> {
 
     let bytes = tokio::fs::read(&path_buf).await?;
     let b64 = general_purpose::STANDARD.encode(&bytes);
-    let mime = match ext_str {
-        "png" => "image/png",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        "tiff" | "tif" => "image/tiff",
-        "bmp" => "image/bmp",
-        _ => "image/jpeg",
-    };
+    let mime = ext_to_mime(ext_str);
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
@@ -77,12 +82,9 @@ pub async fn import_images_batch(
 
         if let Ok(bytes) = std::fs::read(&path_buf) {
             let ext = path_buf.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
+            let ext_lc = ext.to_lowercase();
             let b64 = general_purpose::STANDARD.encode(&bytes);
-            let mime = match ext.to_lowercase().as_str() {
-                "png" => "image/png",
-                "webp" => "image/webp",
-                _ => "image/jpeg",
-            };
+            let mime = ext_to_mime(&ext_lc);
             
             let _ = app_handle.emit("import-new-image", ZipEntry {
                 path,
@@ -144,4 +146,3 @@ pub async fn create_zip(
         Ok(())
     }).await.map_err(|e| PixoraError::Process(e.to_string()))?
 }
-

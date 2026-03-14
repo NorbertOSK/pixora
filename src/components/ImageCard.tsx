@@ -90,6 +90,19 @@ export const ImageCard = memo(function ImageCard({ image, isSelected }: ImageCar
         <div className="px-3 py-2 flex items-center gap-2 border-t border-black/[0.04] dark:border-white/[0.04] min-w-0 bg-transparent">
           {footerIcon && <span className="shrink-0">{footerIcon}</span>}
           <span className="text-[9px] font-bold text-slate-500 dark:text-obsidian-400 truncate flex-1 uppercase tracking-tighter tabular-nums">{image.fileName}</span>
+          {image.wmStatus && image.status === "done" && (
+            <span className={cn(
+              "text-[9px] font-black uppercase px-2 py-0.5 rounded-px border",
+              image.wmStatus === "ok"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-500/30"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200 border-amber-500/30"
+            )}>
+              {{
+                ok: t.wmStatus.ok,
+                skipped_dense: t.wmStatus.skippedDense,
+              }[image.wmStatus] ?? t.wmStatus.ok}
+            </span>
+          )}
           <button
             className="shrink-0 p-1 rounded-px hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-slate-400 dark:text-obsidian-600 hover:text-prism-500 dark:hover:text-prism-400 transition-all"
             onClick={(e) => { e.stopPropagation(); setShowExif(true); }}

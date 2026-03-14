@@ -38,6 +38,7 @@ export function SettingsPanel() {
   const resizeMaxPx = useImageStore((s) => s.pipeline.resizeMaxPx);
   const resizeCustomH = useImageStore((s) => s.pipeline.resizeCustomH);
   const removeBgEnabled = useImageStore((s) => s.pipeline.removeBgEnabled);
+  const removeWmEnabled = useImageStore((s) => s.pipeline.removeWmEnabled);
   const stripExifEnabled = useImageStore((s) => s.pipeline.stripExifEnabled);
   const setPipeline = useImageStore((s) => s.setPipeline);
   const isProcessing = useImageStore((s) => s.isProcessing);
@@ -227,6 +228,43 @@ export function SettingsPanel() {
           </div>
         </Section>
 
+        <Section title={t.settings.removeWm.section} disabled={isProcessing}>
+          <div className="p-1 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "grid h-8 w-8 place-items-center rounded-px border transition-all duration-300",
+                  removeWmEnabled
+                    ? "border-prism-500/30 bg-prism-500/10 text-prism-600 dark:text-prism-400 shadow-satin"
+                    : "border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] text-slate-400 dark:text-obsidian-600"
+                )}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <path d="M4 4L20 20M6 12c0-3 2-5 6-5s6 2 6 5-2 5-6 5-6-2-6-5Z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-[11px] font-black text-slate-800 dark:text-obsidian-100 uppercase tracking-wide">{t.settings.removeWm.title}</div>
+                  <div className="text-[9px] text-slate-500 dark:text-obsidian-500 font-medium">{t.settings.removeWm.subtitle}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setPipeline({ removeWmEnabled: !removeWmEnabled })}
+                className={cn(
+                  "relative h-5 w-9 rounded-full transition-all duration-300",
+                  removeWmEnabled ? "bg-prism-500" : "bg-black/10 dark:bg-white/10"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-1 h-3 w-3 rounded-full bg-white shadow-sm transition-all",
+                  removeWmEnabled ? "left-5" : "left-1"
+                )} />
+              </button>
+            </div>
+
+            {/* Single toggle only; notes remain below */}
+          </div>
+        </Section>
+
         <Section title={t.settings.exif.section} disabled={isProcessing}>
           <div className="p-1 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -258,4 +296,3 @@ export function SettingsPanel() {
     </aside>
   );
 }
-

@@ -1,4 +1,3 @@
-use base64::{engine::general_purpose, Engine as _};
 use image::{imageops::FilterType, GenericImageView, ImageFormat};
 use serde::{Deserialize, Serialize};
 use std::io::BufWriter;
@@ -56,6 +55,7 @@ pub struct ProcessSettings {
     pub resize_max_px: u32,
     pub resize_custom_h: u32,
     pub remove_bg_enabled: bool,
+    pub remove_wm_enabled: bool,
 }
 
 #[derive(Serialize)]
@@ -65,6 +65,7 @@ pub struct ProcessResult {
     pub width: u32,
     pub height: u32,
     pub size_bytes: u64,
+    pub wm_status: Option<String>,
 }
 
 fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<ProcessResult> {
@@ -88,6 +89,23 @@ fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<
 
     let img = if s.remove_bg_enabled {
         apply_remove_bg(&app, img)?
+    } else {
+        img
+    };
+
+    let mut wm_status: Option<String> = None;
+    let img = if s.remove_wm_enabled {
+        match super::remove_wm::apply_remove_wm(&app, img.clone()) {
+            Ok(res) => {
+                wm_status = Some(res.status);
+                res.image
+            }
+            Err(e) => {
+                println!("[wm] remove_wm failed, returning original. err={}", e);
+                wm_status = Some("ok".to_string());
+                img
+            }
+        }
     } else {
         img
     };
@@ -126,6 +144,7 @@ fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<
         width,
         height,
         size_bytes,
+        wm_status,
     })
 }
 
@@ -193,5 +212,3 @@ pub async fn delete_temp_files(state: State<'_, PixoraState>, paths: Vec<String>
 pub async fn cleanup_all_temp(app: AppHandle, state: State<'_, PixoraState>) -> Result<()> {
     cleanup_all(&app, &state).await
 }
-
-

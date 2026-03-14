@@ -50,6 +50,12 @@ const en = {
       modelDownloading: "Downloading AI model (~42 MB)…",
       modelReady: "Model ready — works offline",
     },
+    removeWm: {
+      section: "Remove watermark / text",
+      title: "Remove watermark/text",
+      subtitle: "Local · offline",
+      notes: "Does not remove invisible marks. If too many repeated marks are detected, Pixora will skip to preserve quality.",
+    },
     exif: {
       section: "EXIF & Metadata",
       title: "Clean EXIF",
@@ -75,6 +81,10 @@ const en = {
     exifTooltip: "View EXIF metadata",
     processing: "Processing…",
     pending: "Pending",
+  },
+  wmStatus: {
+    ok: "Watermark removed",
+    skippedDense: "Skipped (too many marks)",
   },
   actions: {
     title: "Actions",
@@ -153,6 +163,18 @@ const en = {
       binance: { label: "Binance", region: "Global", cta: "Open in Binance", hint: "Binance Pay" },
     },
   },
+  updateNotice: {
+    title: "Update available",
+    subtitle: "A newer Pixora release is ready",
+    message: "A new version of Pixora was published. You can view the release notes and download it from GitHub.",
+    currentVersion: "Current version",
+    newVersion: "New version",
+    viewRelease: "View release",
+    later: "Later",
+    close: "Close update modal",
+    checking: "Checking for updates...",
+    error: "Couldn't check for updates.",
+  },
   share: {
     button: "Share",
     title: "Share Pixora",
@@ -217,6 +239,12 @@ const es: T = {
       modelDownloading: "Descargando modelo de IA (~42 MB)…",
       modelReady: "Modelo listo — funciona sin internet",
     },
+    removeWm: {
+      section: "Quitar marca / texto",
+      title: "Quitar marca/texto",
+      subtitle: "Local · sin conexión",
+      notes: "No elimina marcas invisibles. Si se detectan demasiadas marcas repetidas, Pixora omitirá el proceso para preservar la calidad.",
+    },
     exif: {
       section: "EXIF y Metadatos",
       title: "Limpiar EXIF",
@@ -242,6 +270,10 @@ const es: T = {
     exifTooltip: "Ver Metadatos EXIF",
     processing: "Procesando…",
     pending: "Pendiente",
+  },
+  wmStatus: {
+    ok: "Marca/texto eliminado",
+    skippedDense: "Omitido (demasiadas marcas)",
   },
   actions: {
     title: "Acciones",
@@ -320,6 +352,18 @@ const es: T = {
       binance: { label: "Binance", region: "Global", cta: "Abrir en Binance", hint: "Binance Pay" },
     },
   },
+  updateNotice: {
+    title: "Nueva versión disponible",
+    subtitle: "Hay una release más nueva de Pixora",
+    message: "Se publicó una nueva versión de Pixora. Podés ver las notas del release y descargarla desde GitHub.",
+    currentVersion: "Versión actual",
+    newVersion: "Nueva versión",
+    viewRelease: "Ver release",
+    later: "Ahora no",
+    close: "Cerrar aviso de actualización",
+    checking: "Buscando actualizaciones...",
+    error: "No se pudo verificar si hay actualizaciones.",
+  },
   share: {
     button: "Compartir",
     title: "Compartir Pixora",
@@ -382,6 +426,12 @@ const pt: T = {
       modelDownloading: "Baixando modelo de IA (~42 MB)…",
       modelReady: "Modelo pronto — funciona offline",
     },
+    removeWm: {
+      section: "Remover marca / texto",
+      title: "Remover marca/texto",
+      subtitle: "Local · offline",
+      notes: "Não remove marcas invisíveis. Se muitas marcas repetidas forem detectadas, o processo será ignorado para preservar a qualidade.",
+    },
     exif: {
       section: "EXIF e Metadados",
       title: "Limpar EXIF",
@@ -407,6 +457,10 @@ const pt: T = {
     exifTooltip: "Ver metadados EXIF",
     processing: "Processando…",
     pending: "Aguardando",
+  },
+  wmStatus: {
+    ok: "Marca/texto removido",
+    skippedDense: "Ignorado (muitas marcas)",
   },
   actions: {
     title: "Ações",
@@ -484,6 +538,18 @@ const pt: T = {
       buenbit: { label: "BuenBit", region: "Argentina", cta: "Copiar alias", hint: "Envie pelo BuenBit" },
       binance: { label: "Binance", region: "Global", cta: "Abrir no Binance", hint: "Binance Pay" },
     },
+  },
+  updateNotice: {
+    title: "Nova versão disponível",
+    subtitle: "Uma release mais nova do Pixora está pronta",
+    message: "Uma nova versão do Pixora foi publicada. Você pode ver as notas do release e baixar pelo GitHub.",
+    currentVersion: "Versão atual",
+    newVersion: "Nova versão",
+    viewRelease: "Ver release",
+    later: "Agora não",
+    close: "Fechar aviso de atualização",
+    checking: "Verificando atualizações...",
+    error: "Não foi possível verificar atualizações.",
   },
   share: {
     button: "Compartilhar",

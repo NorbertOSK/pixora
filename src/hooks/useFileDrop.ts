@@ -8,7 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useProgressStore } from "../lib/progressStore";
 import { useT } from "../lib/langStore";
 
-const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "tiff", "tif", "bmp"];
+const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "gif", "tiff", "tif", "bmp"];
 
 export function useFileDrop() {
     const t = useT();

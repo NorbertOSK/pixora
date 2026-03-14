@@ -6,6 +6,7 @@ export interface PipelineResult {
   width: number;
   height: number;
   sizeBytes: number;
+  wmStatus?: "ok" | "skipped_dense";
 }
 
 export async function runPipeline(
@@ -21,6 +22,7 @@ export async function runPipeline(
       resizeMaxPx: settings.resizeMaxPx,
       resizeCustomH: settings.resizeCustomH,
       removeBgEnabled: settings.removeBgEnabled ?? false,
+      removeWmEnabled: settings.removeWmEnabled ?? false,
     },
   });
 }

@@ -5,3 +5,4 @@ pub mod remove_bg;
 pub mod resize;
 pub mod save;
 pub mod system;
+pub mod remove_wm;

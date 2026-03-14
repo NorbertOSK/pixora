@@ -8,6 +8,7 @@ export interface ImageItem {
   processedDataUrl: string | null;
   fileName: string;
   status: "idle" | "pending" | "processing" | "done" | "error";
+  wmStatus?: "ok" | "skipped_dense";
   error?: string;
 }
 
@@ -19,6 +20,7 @@ export interface PipelineSettings {
   resizeCustomH: number;
   removeBgEnabled: boolean;
   stripExifEnabled: boolean;
+  removeWmEnabled: boolean;
 }
 
 interface ImageStore {
@@ -60,6 +62,7 @@ const DEFAULT_PIPELINE: PipelineSettings = {
   resizeCustomH: 0,
   removeBgEnabled: false,
   stripExifEnabled: false,
+  removeWmEnabled: false,
 };
 
 export const useImageStore = create<ImageStore>()(
@@ -144,6 +147,7 @@ export const useImageStore = create<ImageStore>()(
           quality: s.pipeline.quality,
           resizeMaxPx: s.pipeline.resizeMaxPx,
           resizeCustomH: s.pipeline.resizeCustomH,
+          removeWmEnabled: s.pipeline.removeWmEnabled,
         },
       }),
       merge: (persisted: unknown, current) => ({

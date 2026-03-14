@@ -126,6 +126,7 @@ export function useProcessing() {
                             status: "done",
                             processedTempPath: result.outputPath,
                             processedDataUrl: displayUrl,
+                            wmStatus: result.wmStatus,
                         });
                     });
                 } catch (err) {
