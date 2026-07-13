@@ -1,6 +1,6 @@
 [package]
 name = "pixora"
-version = "0.1.0"
+version = "1.2.0"
 description = "Pixora — local image editor"
 authors = []
 edition = "2021"
