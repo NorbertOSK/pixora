@@ -76,7 +76,7 @@ export function SettingsPanel() {
             })}
           </div>
 
-          {format !== "png" && (
+          {(
             <div className="mt-4 px-1 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-slate-500 dark:text-obsidian-400 uppercase tracking-widest font-bold">

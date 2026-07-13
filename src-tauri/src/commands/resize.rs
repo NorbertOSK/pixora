@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
-use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageFormat};
+use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageEncoder};
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use crate::error::{PixoraError, Result};
 
 #[derive(Deserialize)]
@@ -46,22 +46,50 @@ pub fn decode_data_url(data_url: &str) -> Result<(DynamicImage, String)> {
     Ok((img, format.to_string()))
 }
 
-pub fn encode_image(img: &DynamicImage, format: &str, quality: u8) -> Result<(String, usize)> {
-    let mut buf = Cursor::new(Vec::new());
-
+/// Encode image to the given format with quality control.
+/// - JPEG: quality 1-100 (lossy)
+/// - WebP: quality 1-100 via libwebp (lossy)
+/// - PNG: quality maps to compression effort (lossless always)
+pub fn encode_image_to_writer<W: Write>(img: &DynamicImage, writer: &mut W, format: &str, quality: u8) -> Result<()> {
     match format {
-        "png" => img
-            .write_to(&mut buf, ImageFormat::Png)
-            .map_err(|e| PixoraError::Image(e.to_string()))?,
-        "webp" => img
-            .write_to(&mut buf, ImageFormat::WebP)
-            .map_err(|e| PixoraError::Image(e.to_string()))?,
+        "png" => {
+            let compression = if quality <= 30 {
+                image::codecs::png::CompressionType::Best
+            } else if quality <= 70 {
+                image::codecs::png::CompressionType::Default
+            } else {
+                image::codecs::png::CompressionType::Fast
+            };
+            let encoder = image::codecs::png::PngEncoder::new_with_quality(
+                writer,
+                compression,
+                image::codecs::png::FilterType::Adaptive,
+            );
+            encoder.write_image(
+                img.as_bytes(),
+                img.width(),
+                img.height(),
+                img.color().into(),
+            ).map_err(|e: image::ImageError| PixoraError::Image(e.to_string()))?;
+        }
+        "webp" => {
+            let rgba = img.to_rgba8();
+            let encoder = webp::Encoder::from_rgba(&rgba, img.width(), img.height());
+            let mem = encoder.encode(quality as f32);
+            writer.write_all(&mem).map_err(|e| PixoraError::Image(e.to_string()))?;
+        }
         _ => {
             let mut encoder =
-                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality);
+                image::codecs::jpeg::JpegEncoder::new_with_quality(writer, quality);
             encoder.encode_image(img).map_err(|e| PixoraError::Image(e.to_string()))?;
         }
     }
+    Ok(())
+}
+
+pub fn encode_image(img: &DynamicImage, format: &str, quality: u8) -> Result<(String, usize)> {
+    let mut buf = Cursor::new(Vec::new());
+    encode_image_to_writer(img, &mut buf, format, quality)?;
 
     let bytes = buf.into_inner();
     let size = bytes.len();

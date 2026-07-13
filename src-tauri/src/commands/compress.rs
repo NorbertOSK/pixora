@@ -1,8 +1,9 @@
 use base64::{engine::general_purpose, Engine as _};
-use image::{DynamicImage, GenericImageView, ImageFormat};
+use image::{DynamicImage, GenericImageView};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use crate::error::{PixoraError, Result};
+use super::resize::encode_image_to_writer;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,21 +61,7 @@ pub async fn compress_image(data_url: String, options: CompressOptions) -> Resul
         let quality = options.quality.clamp(1, 100);
 
         let mut buf = Cursor::new(Vec::new());
-
-        match format.as_str() {
-            "png" => img
-                .write_to(&mut buf, ImageFormat::Png)
-                .map_err(|e| PixoraError::Image(e.to_string()))?,
-            "webp" => img
-                .write_to(&mut buf, ImageFormat::WebP)
-                .map_err(|e| PixoraError::Image(e.to_string()))?,
-            _ => {
-                let mut encoder =
-                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality);
-                encoder.encode_image(&img).map_err(|e| PixoraError::Image(e.to_string()))?;
-            }
-        }
-
+        encode_image_to_writer(&img, &mut buf, &format, quality)?;
         let compressed = buf.into_inner();
         let size_bytes = compressed.len();
         let saved_percent = if original_size > 0 {

@@ -1,5 +1,4 @@
-use base64::{engine::general_purpose, Engine as _};
-use image::{imageops::FilterType, GenericImageView, ImageFormat};
+use image::{imageops::FilterType, GenericImageView};
 use serde::{Deserialize, Serialize};
 use std::io::BufWriter;
 use std::path::PathBuf;
@@ -10,7 +9,7 @@ use crate::error::{PixoraError, Result};
 use crate::state::PixoraState;
 
 use super::remove_bg::apply_remove_bg;
-use super::resize::decode_data_url;
+use super::resize::{decode_data_url, encode_image_to_writer};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -105,17 +104,7 @@ fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<
         let file = std::fs::File::create(&out_path)?;
         let mut writer = BufWriter::new(file);
 
-        match format {
-            "png"  => img.write_to(&mut writer, ImageFormat::Png)
-                         .map_err(|e| PixoraError::Image(e.to_string()))?,
-            "webp" => img.write_to(&mut writer, ImageFormat::WebP)
-                         .map_err(|e| PixoraError::Image(e.to_string()))?,
-            _ => {
-                let mut enc =
-                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut writer, quality);
-                enc.encode_image(&img).map_err(|e| PixoraError::Image(e.to_string()))?;
-            }
-        }
+        encode_image_to_writer(&img, &mut writer, format, quality)?;
     }
 
     let size_bytes = out_path.metadata()?.len();

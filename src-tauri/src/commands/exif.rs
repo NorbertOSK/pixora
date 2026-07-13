@@ -1,8 +1,9 @@
 use base64::{engine::general_purpose, Engine as _};
-use image::{DynamicImage, ImageFormat};
+use image::DynamicImage;
 use serde::Serialize;
 use std::io::Cursor;
 use crate::error::{PixoraError, Result};
+use super::resize::encode_image_to_writer;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -75,24 +76,13 @@ pub async fn read_exif(data_url: String) -> Result<ExifInfo> {
 }
 
 #[tauri::command]
-pub async fn strip_exif(data_url: String) -> Result<ExifResult> {
+pub async fn strip_exif(data_url: String, quality: Option<u8>) -> Result<ExifResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let (img, format, _) = decode(&data_url)?;
+        let quality = quality.unwrap_or(95).clamp(1, 100);
 
         let mut buf = Cursor::new(Vec::new());
-        match format.as_str() {
-            "png" => img
-                .write_to(&mut buf, ImageFormat::Png)
-                .map_err(|e| PixoraError::Image(e.to_string()))?,
-            "webp" => img
-                .write_to(&mut buf, ImageFormat::WebP)
-                .map_err(|e| PixoraError::Image(e.to_string()))?,
-            _ => {
-                let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, 92);
-                encoder.encode_image(&img).map_err(|e| PixoraError::Image(e.to_string()))?;
-            }
-        }
-
+        encode_image_to_writer(&img, &mut buf, &format, quality)?;
         let bytes = buf.into_inner();
         let mime = match format.as_str() {
             "png" => "image/png",
