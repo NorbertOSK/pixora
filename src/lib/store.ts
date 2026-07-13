@@ -17,6 +17,7 @@ export interface PipelineSettings {
   resizeEnabled: boolean;
   resizeMaxPx: number;
   resizeCustomH: number;
+  lockAspectRatio: boolean;
   removeBgEnabled: boolean;
   stripExifEnabled: boolean;
 }
@@ -58,6 +59,7 @@ const DEFAULT_PIPELINE: PipelineSettings = {
   resizeEnabled: false,
   resizeMaxPx: 1920,
   resizeCustomH: 0,
+  lockAspectRatio: true,
   removeBgEnabled: false,
   stripExifEnabled: false,
 };
@@ -144,6 +146,7 @@ export const useImageStore = create<ImageStore>()(
           quality: s.pipeline.quality,
           resizeMaxPx: s.pipeline.resizeMaxPx,
           resizeCustomH: s.pipeline.resizeCustomH,
+          lockAspectRatio: s.pipeline.lockAspectRatio,
         },
       }),
       merge: (persisted: unknown, current) => ({

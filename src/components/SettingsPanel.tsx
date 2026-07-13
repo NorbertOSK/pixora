@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, Lock, Unlock } from "lucide-react";
 import { useImageStore } from "../lib/store";
 import { useT } from "../lib/langStore";
 import { useBgModelStatus } from "../hooks/useBgModelStatus";
@@ -37,6 +37,7 @@ export function SettingsPanel() {
   const resizeEnabled = useImageStore((s) => s.pipeline.resizeEnabled);
   const resizeMaxPx = useImageStore((s) => s.pipeline.resizeMaxPx);
   const resizeCustomH = useImageStore((s) => s.pipeline.resizeCustomH);
+  const lockAspectRatio = useImageStore((s) => s.pipeline.lockAspectRatio);
   const removeBgEnabled = useImageStore((s) => s.pipeline.removeBgEnabled);
   const stripExifEnabled = useImageStore((s) => s.pipeline.stripExifEnabled);
   const setPipeline = useImageStore((s) => s.setPipeline);
@@ -151,25 +152,48 @@ export function SettingsPanel() {
                 </select>
 
                 {customPx && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 dark:text-obsidian-500 font-black uppercase tracking-widest">{t.settings.resize.widthLabel}</label>
-                      <input
-                        type="number" value={resizeMaxPx || ""}
-                        onChange={(e) => setPipeline({ resizeMaxPx: Number(e.target.value) })}
-                        placeholder={t.settings.resize.widthPlaceholder}
-                        className="w-full bg-white dark:bg-obsidian-900 border border-black/[0.06] dark:border-white/[0.06] rounded-px px-2.5 py-1.5 text-xs text-slate-700 dark:text-obsidian-100 outline-none focus:border-prism-500 transition-all tabular-nums font-bold placeholder:text-slate-300 dark:placeholder:text-obsidian-800"
-                      />
+                  <div className="space-y-1.5">
+                    <div className="flex items-end gap-1.5">
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] text-slate-500 dark:text-obsidian-500 font-black uppercase tracking-widest">{t.settings.resize.widthLabel}</label>
+                        <input
+                          type="number" value={resizeMaxPx || ""}
+                          onChange={(e) => setPipeline({ resizeMaxPx: Number(e.target.value) })}
+                          placeholder={t.settings.resize.widthPlaceholder}
+                          className="w-full bg-white dark:bg-obsidian-900 border border-black/[0.06] dark:border-white/[0.06] rounded-px px-2.5 py-1.5 text-xs text-slate-700 dark:text-obsidian-100 outline-none focus:border-prism-500 transition-all tabular-nums font-bold placeholder:text-slate-300 dark:placeholder:text-obsidian-800"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setPipeline({ lockAspectRatio: !lockAspectRatio })}
+                        title={lockAspectRatio ? t.settings.resize.lockedTooltip : t.settings.resize.unlockedTooltip}
+                        aria-label={lockAspectRatio ? t.settings.resize.locked : t.settings.resize.unlocked}
+                        aria-pressed={lockAspectRatio}
+                        className={cn(
+                          "mb-[3px] grid h-[30px] w-[30px] shrink-0 place-items-center rounded-px border transition-all duration-200",
+                          lockAspectRatio
+                            ? "border-prism-500/30 bg-prism-500/10 text-prism-600 dark:text-prism-400"
+                            : "border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] text-slate-400 dark:text-obsidian-600 hover:text-slate-600 dark:hover:text-obsidian-300"
+                        )}
+                      >
+                        {lockAspectRatio ? <Lock size={12} /> : <Unlock size={12} />}
+                      </button>
+
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] text-slate-500 dark:text-obsidian-500 font-black uppercase tracking-widest">{t.settings.resize.heightLabel}</label>
+                        <input
+                          type="number" value={resizeCustomH || ""}
+                          onChange={(e) => setPipeline({ resizeCustomH: Number(e.target.value) })}
+                          placeholder={t.settings.resize.heightPlaceholder}
+                          className="w-full bg-white dark:bg-obsidian-900 border border-black/[0.06] dark:border-white/[0.06] rounded-px px-2.5 py-1.5 text-xs text-slate-700 dark:text-obsidian-100 outline-none focus:border-prism-500 transition-all tabular-nums font-bold placeholder:text-slate-300 dark:placeholder:text-obsidian-800"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 dark:text-obsidian-500 font-black uppercase tracking-widest">{t.settings.resize.heightLabel}</label>
-                      <input
-                        type="number" value={resizeCustomH || ""}
-                        onChange={(e) => setPipeline({ resizeCustomH: Number(e.target.value) })}
-                        placeholder={t.settings.resize.heightPlaceholder}
-                        className="w-full bg-white dark:bg-obsidian-900 border border-black/[0.06] dark:border-white/[0.06] rounded-px px-2.5 py-1.5 text-xs text-slate-700 dark:text-obsidian-100 outline-none focus:border-prism-500 transition-all tabular-nums font-bold placeholder:text-slate-300 dark:placeholder:text-obsidian-800"
-                      />
-                    </div>
+
+                    <p className="text-[9px] text-slate-400 dark:text-obsidian-600 font-medium leading-snug">
+                      {lockAspectRatio ? t.settings.resize.lockedHint : t.settings.resize.unlockedHint}
+                    </p>
                   </div>
                 )}
               </div>

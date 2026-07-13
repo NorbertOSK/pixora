@@ -20,6 +20,7 @@ export async function runPipeline(
       resizeEnabled: settings.resizeEnabled ?? false,
       resizeMaxPx: settings.resizeMaxPx,
       resizeCustomH: settings.resizeCustomH,
+      lockAspectRatio: settings.lockAspectRatio ?? true,
       removeBgEnabled: settings.removeBgEnabled ?? false,
     },
   });

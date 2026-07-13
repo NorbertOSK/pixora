@@ -54,7 +54,13 @@ pub struct ProcessSettings {
     pub resize_enabled: bool,
     pub resize_max_px: u32,
     pub resize_custom_h: u32,
+    #[serde(default = "default_true")]
+    pub lock_aspect_ratio: bool,
     pub remove_bg_enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Serialize)]
@@ -66,18 +72,51 @@ pub struct ProcessResult {
     pub size_bytes: u64,
 }
 
+/// Computes the target (width, height) for the resize step.
+///
+/// - When `lock_aspect_ratio` is true (default), or when the user has only supplied one
+///   dimension (`max_h == 0`), the image is fit *within* a `max_w` x `max_h` box, preserving
+///   the original aspect ratio — the historical "longest side" behavior.
+/// - When `lock_aspect_ratio` is false AND both a width and a height were supplied
+///   (`max_h > 0`), the output is forced to exactly `max_w` x `max_h`, distortion allowed.
+fn compute_target_dimensions(
+    orig_w: u32,
+    orig_h: u32,
+    max_w: u32,
+    max_h: u32,
+    lock_aspect_ratio: bool,
+) -> (u32, u32) {
+    let has_custom_h = max_h > 0;
+
+    if !lock_aspect_ratio && has_custom_h {
+        return (max_w.max(1), max_h.max(1));
+    }
+
+    let effective_h = if has_custom_h { max_h } else { max_w };
+    let ratio = (max_w as f64 / orig_w as f64).min(effective_h as f64 / orig_h as f64);
+    if ratio < 0.9999 {
+        let nw = ((orig_w as f64 * ratio) as u32).max(1);
+        let nh = ((orig_h as f64 * ratio) as u32).max(1);
+        (nw, nh)
+    } else {
+        (orig_w, orig_h)
+    }
+}
+
 fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<ProcessResult> {
     let (img, _) = decode_data_url(&data_url)?;
 
     let img = if s.resize_enabled && s.resize_max_px > 0 {
         let (orig_w, orig_h) = img.dimensions();
-        let max_w = s.resize_max_px;
-        let max_h = if s.resize_custom_h > 0 { s.resize_custom_h } else { s.resize_max_px };
-        let ratio = (max_w as f64 / orig_w as f64).min(max_h as f64 / orig_h as f64);
-        if ratio < 0.9999 {
-            let nw = ((orig_w as f64 * ratio) as u32).max(1);
-            let nh = ((orig_h as f64 * ratio) as u32).max(1);
-            img.resize_exact(nw, nh, FilterType::Lanczos3)
+        let (new_w, new_h) = compute_target_dimensions(
+            orig_w,
+            orig_h,
+            s.resize_max_px,
+            s.resize_custom_h,
+            s.lock_aspect_ratio,
+        );
+        if new_w != orig_w || new_h != orig_h {
+            img.resize_exact(new_w, new_h, FilterType::Lanczos3)
         } else {
             img
         }
@@ -183,4 +222,63 @@ pub async fn cleanup_all_temp(app: AppHandle, state: State<'_, PixoraState>) -> 
     cleanup_all(&app, &state).await
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    /// Lock off + both dimensions supplied: output must be exactly the requested size,
+    /// distortion allowed. This is the bug the aspect-ratio lock toggle fixes.
+    #[test]
+    fn custom_dimensions_with_lock_off_yields_exact_size() {
+        let (w, h) = compute_target_dimensions(400, 300, 500, 500, false);
+        assert_eq!((w, h), (500, 500));
+    }
+
+    /// Lock on (default): fits *within* the requested box, preserving the original aspect
+    /// ratio — this is the pre-existing "longest side" behavior, and it never upscales.
+    /// An 800x600 (4:3) source requesting a 500x500 box -> min(500/800, 500/600) = 0.625
+    /// -> 500x375, still 4:3.
+    #[test]
+    fn custom_dimensions_with_lock_on_preserves_aspect_ratio() {
+        let (w, h) = compute_target_dimensions(800, 600, 500, 500, true);
+        assert_eq!((w, h), (500, 375));
+    }
+
+    /// Same 500x500 request against a smaller 400x300 source: the fit-within box is larger
+    /// than the source in both dimensions, so the pre-existing "no upscale" guard keeps the
+    /// original size — this is the exact scenario from the bug report where a user expects
+    /// their custom WxH to be honored but, with the lock on, only the fit-within/no-upscale
+    /// behavior applies.
+    #[test]
+    fn custom_dimensions_with_lock_on_does_not_upscale() {
+        let (w, h) = compute_target_dimensions(400, 300, 500, 500, true);
+        assert_eq!((w, h), (400, 300));
+    }
+
+    /// Only width supplied (height unset/0): even with lock off, there is no second
+    /// dimension to honor, so the existing "fit longest side" behavior must be preserved.
+    /// 400x300 downscaled to fit within 200 -> ratio 0.5 -> 200x150.
+    #[test]
+    fn width_only_mode_is_unaffected_by_lock_flag() {
+        let locked = compute_target_dimensions(400, 300, 200, 0, true);
+        let unlocked = compute_target_dimensions(400, 300, 200, 0, false);
+        assert_eq!(locked, unlocked);
+        assert_eq!(locked, (200, 150));
+    }
+
+    /// Requesting a box larger than the source with lock on should not upscale
+    /// (ratio >= 1 short-circuits to original dimensions) — unchanged legacy behavior.
+    #[test]
+    fn no_upscale_when_target_box_is_not_smaller_with_lock_on() {
+        let (w, h) = compute_target_dimensions(400, 300, 4000, 4000, true);
+        assert_eq!((w, h), (400, 300));
+    }
+
+    /// Lock off but target equals the original size: exact mode still requested,
+    /// dimensions simply come out unchanged.
+    #[test]
+    fn exact_mode_matching_original_size_is_a_no_op() {
+        let (w, h) = compute_target_dimensions(400, 300, 400, 300, false);
+        assert_eq!((w, h), (400, 300));
+    }
+}
