@@ -10,10 +10,13 @@ import { useT } from "./lib/langStore";
 import "./lib/themeStore";
 
 import { useProgressStore } from "./lib/progressStore";
+import { useUpdateCheck } from "./hooks/useUpdateCheck";
+import { UpdateAvailableModal } from "./components/UpdateAvailableModal";
 
 export default function App() {
   const { isDragActive, handleOpenFile } = useFileDrop();
   const { isBusy, progress, message, subtitle } = useProgressStore();
+  const { isOpen, currentVersion, latestVersion, dismiss, openRelease } = useUpdateCheck();
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-obsidian-950 text-slate-900 dark:text-obsidian-100">
@@ -24,6 +27,15 @@ export default function App() {
           subtitle={subtitle}
         />
       )}
+
+      <UpdateAvailableModal
+        open={isOpen}
+        currentVersion={currentVersion}
+        latestVersion={latestVersion}
+        onClose={dismiss}
+        onViewRelease={openRelease}
+      />
+
       <Header onOpenFile={handleOpenFile} />
       <div className="flex flex-1 min-h-0 relative">
         {/* Decorative Background Glows */}
