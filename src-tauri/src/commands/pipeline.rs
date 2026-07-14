@@ -103,6 +103,20 @@ fn compute_target_dimensions(
     }
 }
 
+/// Resolves the output format and encode quality for the final write.
+///
+/// When background removal forces the format from the user's `"jpeg"` selection to `"png"`
+/// (to preserve the cutout's transparency), quality is also forced to 100 (lossless) so the
+/// alpha-channel cutout is never palette-quantized. A user-selected PNG (no override) keeps
+/// the user's chosen quality.
+fn resolve_format_and_quality(format: &str, remove_bg_enabled: bool, quality: u8) -> (&str, u8) {
+    if remove_bg_enabled && format == "jpeg" {
+        ("png", 100)
+    } else {
+        (format, quality.clamp(1, 100))
+    }
+}
+
 fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<ProcessResult> {
     let (img, _) = decode_data_url(&data_url)?;
 
@@ -130,12 +144,7 @@ fn run_pipeline(app: AppHandle, data_url: String, s: ProcessSettings) -> Result<
         img
     };
 
-    let format = if s.remove_bg_enabled && s.format == "jpeg" {
-        "png"
-    } else {
-        s.format.as_str()
-    };
-    let quality = s.quality.clamp(1, 100);
+    let (format, quality) = resolve_format_and_quality(&s.format, s.remove_bg_enabled, s.quality);
     let ext = match format { "png" => "png", "webp" => "webp", _ => "jpg" };
 
     let out_path = next_temp_path(&app, ext)?;
@@ -280,5 +289,32 @@ mod tests {
     fn exact_mode_matching_original_size_is_a_no_op() {
         let (w, h) = compute_target_dimensions(400, 300, 400, 300, false);
         assert_eq!((w, h), (400, 300));
+    }
+
+    /// Background removal forcing a JPEG selection to PNG (to preserve transparency) must
+    /// also force quality to 100 so the alpha-channel cutout is never palette-quantized.
+    #[test]
+    fn remove_bg_forces_png_and_lossless_quality_for_jpeg_selection() {
+        let (format, quality) = resolve_format_and_quality("jpeg", true, 60);
+        assert_eq!(format, "png");
+        assert_eq!(quality, 100);
+    }
+
+    /// A user-selected PNG is not a format override, so the user's chosen quality must be
+    /// preserved even with background removal enabled.
+    #[test]
+    fn remove_bg_does_not_override_user_selected_png_quality() {
+        let (format, quality) = resolve_format_and_quality("png", true, 60);
+        assert_eq!(format, "png");
+        assert_eq!(quality, 60);
+    }
+
+    /// With background removal disabled, format and quality pass through unchanged
+    /// (aside from clamping to the valid 1-100 range).
+    #[test]
+    fn format_and_quality_pass_through_when_remove_bg_disabled() {
+        let (format, quality) = resolve_format_and_quality("jpeg", false, 60);
+        assert_eq!(format, "jpeg");
+        assert_eq!(quality, 60);
     }
 }
