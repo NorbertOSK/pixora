@@ -32,7 +32,7 @@ const en = {
       lockedTooltip: "Aspect ratio locked — click to unlock",
       unlockedTooltip: "Aspect ratio unlocked — click to lock",
       lockedHint: "Aspect ratio locked. The image is fitted within the given size, keeping its original proportions.",
-      unlockedHint: "Aspect ratio unlocked. The output will be exactly this width and height — the image may be distorted.",
+      unlockedHint: "Output will match the exact width and height you set (image may be distorted). If one field is empty, the aspect ratio is kept.",
       presets: {
         original: "Original",
         hero: "Hero / Banner (1920×1920 px)",
@@ -168,8 +168,6 @@ const en = {
     viewRelease: "View release",
     later: "Later",
     close: "Close update modal",
-    checking: "Checking for updates...",
-    error: "Couldn't check for updates.",
   },
   share: {
     button: "Share",
@@ -217,7 +215,7 @@ const es: T = {
       lockedTooltip: "Proporción bloqueada — clic para desbloquear",
       unlockedTooltip: "Proporción desbloqueada — clic para bloquear",
       lockedHint: "Proporción bloqueada. La imagen se ajusta dentro del tamaño indicado, manteniendo sus proporciones originales.",
-      unlockedHint: "Proporción desbloqueada. El resultado tendrá exactamente este ancho y alto — la imagen puede distorsionarse.",
+      unlockedHint: "El resultado tendrá exactamente el ancho y el alto que definas (la imagen puede distorsionarse). Si un campo queda vacío, se mantiene la proporción.",
       presets: {
         original: "Original",
         hero: "Hero / Banner (1920×1920 px)",
@@ -347,14 +345,12 @@ const es: T = {
   updateNotice: {
     title: "Nueva versión disponible",
     subtitle: "Hay una release más nueva de Pixora",
-    message: "Se publicó una nueva versión de Pixora. Podés ver las notas del release y descargarla desde GitHub.",
+    message: "Se publicó una nueva versión de Pixora. Puedes ver las notas de la versión y descargarla desde GitHub.",
     currentVersion: "Versión actual",
     newVersion: "Nueva versión",
     viewRelease: "Ver release",
     later: "Ahora no",
     close: "Cerrar aviso de actualización",
-    checking: "Buscando actualizaciones...",
-    error: "No se pudo verificar si hay actualizaciones.",
   },
   share: {
     button: "Compartir",
@@ -400,7 +396,7 @@ const pt: T = {
       lockedTooltip: "Proporção bloqueada — clique para desbloquear",
       unlockedTooltip: "Proporção desbloqueada — clique para bloquear",
       lockedHint: "Proporção bloqueada. A imagem é ajustada dentro do tamanho informado, mantendo suas proporções originais.",
-      unlockedHint: "Proporção desbloqueada. O resultado terá exatamente esta largura e altura — a imagem pode ficar distorcida.",
+      unlockedHint: "O resultado terá exatamente a largura e a altura definidas (a imagem pode ficar distorcida). Se um campo ficar vazio, a proporção é mantida.",
       presets: {
         original: "Original",
         hero: "Hero / Banner (1920×1920 px)",
@@ -536,8 +532,6 @@ const pt: T = {
     viewRelease: "Ver release",
     later: "Agora não",
     close: "Fechar aviso de atualização",
-    checking: "Verificando atualizações...",
-    error: "Não foi possível verificar atualizações.",
   },
   share: {
     button: "Compartilhar",

@@ -19,6 +19,7 @@ tauri-plugin-fs = "2"
 image = { version = "0.25", features = ["jpeg", "png", "webp"] }
 webp = "0.3"
 imagequant = "4.4"
+bytemuck = "1"
 png = "0.18"
 base64 = { version = "0.22", features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }

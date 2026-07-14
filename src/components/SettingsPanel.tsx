@@ -77,38 +77,36 @@ export function SettingsPanel() {
             })}
           </div>
 
-          {(
-            <div className="mt-4 px-1 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 dark:text-obsidian-400 uppercase tracking-widest font-bold">
-                  {t.settings.format.quality}
-                </span>
-                <span className="text-[11px] font-black text-prism-600 dark:text-prism-400 tabular-nums">
-                  {quality}%
-                </span>
-              </div>
+          <div className="mt-4 px-1 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500 dark:text-obsidian-400 uppercase tracking-widest font-bold">
+                {t.settings.format.quality}
+              </span>
+              <span className="text-[11px] font-black text-prism-600 dark:text-prism-400 tabular-nums">
+                {quality}%
+              </span>
+            </div>
 
-              <div className="relative group px-1">
-                <div className="h-1 w-full bg-black/[0.05] dark:bg-white/[0.05] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-prism-500 shadow-[0_0_8px_rgba(99,102,241,0.4)] transition-all duration-300"
-                    style={{ width: `${quality}%` }}
-                  />
-                </div>
-                <input
-                  type="range" min={1} max={100} value={quality}
-                  onChange={(e) => setPipeline({ quality: Number(e.target.value) })}
-                  className="absolute inset-0 w-full h-1 opacity-0 cursor-pointer accent-prism-500"
+            <div className="relative group px-1">
+              <div className="h-1 w-full bg-black/[0.05] dark:bg-white/[0.05] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-prism-500 shadow-[0_0_8px_rgba(99,102,241,0.4)] transition-all duration-300"
+                  style={{ width: `${quality}%` }}
                 />
               </div>
-
-              <div className="flex justify-between text-[8px] text-slate-400 dark:text-obsidian-600 font-bold uppercase tracking-tighter px-1">
-                <span>{t.settings.format.qualityLow}</span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity">{t.settings.format.qualityMid}</span>
-                <span>{t.settings.format.qualityHigh}</span>
-              </div>
+              <input
+                type="range" min={1} max={100} value={quality}
+                onChange={(e) => setPipeline({ quality: Number(e.target.value) })}
+                className="absolute inset-0 w-full h-1 opacity-0 cursor-pointer accent-prism-500"
+              />
             </div>
-          )}
+
+            <div className="flex justify-between text-[8px] text-slate-400 dark:text-obsidian-600 font-bold uppercase tracking-tighter px-1">
+              <span>{t.settings.format.qualityLow}</span>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity">{t.settings.format.qualityMid}</span>
+              <span>{t.settings.format.qualityHigh}</span>
+            </div>
+          </div>
         </Section>
 
         <Section title={t.settings.resize.section} disabled={isProcessing}>

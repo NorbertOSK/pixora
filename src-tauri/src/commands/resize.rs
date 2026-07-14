@@ -23,6 +23,37 @@ pub struct ResizeResult {
     pub size_bytes: usize,
 }
 
+/// Computes the target (width, height) for a fit/resize step.
+///
+/// - When `lock_aspect_ratio` is true (default), or when the caller has only supplied one
+///   dimension (`max_h == 0`), the image is fit *within* a `max_w` x `max_h` box, preserving
+///   the original aspect ratio — the historical "longest side" behavior.
+/// - When `lock_aspect_ratio` is false AND both a width and a height were supplied
+///   (`max_h > 0`), the output is forced to exactly `max_w` x `max_h`, distortion allowed.
+pub(crate) fn compute_target_dimensions(
+    orig_w: u32,
+    orig_h: u32,
+    max_w: u32,
+    max_h: u32,
+    lock_aspect_ratio: bool,
+) -> (u32, u32) {
+    let has_custom_h = max_h > 0;
+
+    if !lock_aspect_ratio && has_custom_h {
+        return (max_w.max(1), max_h.max(1));
+    }
+
+    let effective_h = if has_custom_h { max_h } else { max_w };
+    let ratio = (max_w as f64 / orig_w as f64).min(effective_h as f64 / orig_h as f64);
+    if ratio < 0.9999 {
+        let nw = ((orig_w as f64 * ratio) as u32).max(1);
+        let nh = ((orig_h as f64 * ratio) as u32).max(1);
+        (nw, nh)
+    } else {
+        (orig_w, orig_h)
+    }
+}
+
 pub fn decode_data_url(data_url: &str) -> Result<(DynamicImage, String)> {
     let (header, data) = data_url
         .split_once(',')
@@ -75,7 +106,11 @@ pub fn encode_image_to_writer<W: Write>(img: &DynamicImage, writer: &mut W, form
         "webp" => {
             let rgba = img.to_rgba8();
             let encoder = webp::Encoder::from_rgba(&rgba, img.width(), img.height());
-            let mem = encoder.encode(quality as f32);
+            let mem = if quality >= 100 {
+                encoder.encode_lossless()
+            } else {
+                encoder.encode(quality as f32)
+            };
             writer.write_all(&mem).map_err(|e| PixoraError::Image(e.to_string()))?;
         }
         _ => {
@@ -96,10 +131,10 @@ fn encode_png_quantized<W: Write>(img: &DynamicImage, writer: &mut W, quality: u
     let width = rgba.width() as usize;
     let height = rgba.height() as usize;
 
-    let pixels: Vec<imagequant::RGBA> = rgba
-        .pixels()
-        .map(|p| imagequant::RGBA::new(p[0], p[1], p[2], p[3]))
-        .collect();
+    // `imagequant::RGBA` is `rgb::Rgba<u8>` — `#[repr(C)]` with four `u8` fields, i.e.
+    // layout-identical to interleaved RGBA8 bytes. Reinterpret the raw buffer instead of
+    // allocating and populating a second full-size `Vec` pixel by pixel.
+    let pixels: &[imagequant::RGBA] = bytemuck::cast_slice(rgba.as_raw());
 
     let mut liq = imagequant::new();
     liq.set_quality(0, quality.min(100))
@@ -169,16 +204,11 @@ pub async fn resize_image(data_url: String, options: ResizeOptions) -> Result<Re
         let (img, orig_format) = decode_data_url(&data_url)?;
         let (orig_w, orig_h) = img.dimensions();
         let format = options.format.as_deref().unwrap_or(&orig_format).to_string();
-        let quality = options.quality.unwrap_or(85).clamp(1, 100);
+        let quality = options.quality.unwrap_or(100).clamp(1, 100);
 
         let (new_w, new_h) = match (options.width, options.height) {
             (Some(w), Some(h)) => {
-                if options.keep_aspect {
-                    let ratio = (w as f64 / orig_w as f64).min(h as f64 / orig_h as f64);
-                    ((orig_w as f64 * ratio) as u32, (orig_h as f64 * ratio) as u32)
-                } else {
-                    (w, h)
-                }
+                compute_target_dimensions(orig_w, orig_h, w, h, options.keep_aspect)
             }
             (Some(w), None) => {
                 let ratio = w as f64 / orig_w as f64;
@@ -262,8 +292,11 @@ mod tests {
         assert_eq!(decoded_lossless.height(), 512);
     }
 
+    /// Quality 100 must take the `encode_lossless()` path (matching PNG's "100 = lossless"
+    /// semantics), while quality 80 stays on the lossy `encode()` path. Both outputs must
+    /// differ, decode successfully, and the lossy output must be smaller.
     #[test]
-    fn webp_quality_80_is_smaller_than_quality_100() {
+    fn webp_quality_100_is_lossless_and_differs_from_quality_80() {
         let img = photo_like_image(512);
 
         let mut q100_buf = Cursor::new(Vec::new());
@@ -277,10 +310,18 @@ mod tests {
         assert_ne!(q100_bytes, q80_bytes, "quality 80 and 100 WebP output should differ");
         assert!(
             q80_bytes.len() < q100_bytes.len(),
-            "expected quality 80 WebP to be smaller than quality 100; q80={} q100={}",
+            "expected lossy quality 80 WebP to be smaller than lossless quality 100; q80={} q100={}",
             q80_bytes.len(),
             q100_bytes.len()
         );
+
+        let decoded_q100 = image::load_from_memory(&q100_bytes).unwrap();
+        assert_eq!(decoded_q100.width(), 512);
+        assert_eq!(decoded_q100.height(), 512);
+
+        let decoded_q80 = image::load_from_memory(&q80_bytes).unwrap();
+        assert_eq!(decoded_q80.width(), 512);
+        assert_eq!(decoded_q80.height(), 512);
     }
 
     #[test]
@@ -301,6 +342,62 @@ mod tests {
             q50_bytes.len(),
             q95_bytes.len()
         );
+    }
+
+    /// Lock off + both dimensions supplied: output must be exactly the requested size,
+    /// distortion allowed. This is the bug the aspect-ratio lock toggle fixes.
+    #[test]
+    fn custom_dimensions_with_lock_off_yields_exact_size() {
+        let (w, h) = compute_target_dimensions(400, 300, 500, 500, false);
+        assert_eq!((w, h), (500, 500));
+    }
+
+    /// Lock on (default): fits *within* the requested box, preserving the original aspect
+    /// ratio — this is the pre-existing "longest side" behavior, and it never upscales.
+    /// An 800x600 (4:3) source requesting a 500x500 box -> min(500/800, 500/600) = 0.625
+    /// -> 500x375, still 4:3.
+    #[test]
+    fn custom_dimensions_with_lock_on_preserves_aspect_ratio() {
+        let (w, h) = compute_target_dimensions(800, 600, 500, 500, true);
+        assert_eq!((w, h), (500, 375));
+    }
+
+    /// Same 500x500 request against a smaller 400x300 source: the fit-within box is larger
+    /// than the source in both dimensions, so the pre-existing "no upscale" guard keeps the
+    /// original size — this is the exact scenario from the bug report where a user expects
+    /// their custom WxH to be honored but, with the lock on, only the fit-within/no-upscale
+    /// behavior applies.
+    #[test]
+    fn custom_dimensions_with_lock_on_does_not_upscale() {
+        let (w, h) = compute_target_dimensions(400, 300, 500, 500, true);
+        assert_eq!((w, h), (400, 300));
+    }
+
+    /// Only width supplied (height unset/0): even with lock off, there is no second
+    /// dimension to honor, so the existing "fit longest side" behavior must be preserved.
+    /// 400x300 downscaled to fit within 200 -> ratio 0.5 -> 200x150.
+    #[test]
+    fn width_only_mode_is_unaffected_by_lock_flag() {
+        let locked = compute_target_dimensions(400, 300, 200, 0, true);
+        let unlocked = compute_target_dimensions(400, 300, 200, 0, false);
+        assert_eq!(locked, unlocked);
+        assert_eq!(locked, (200, 150));
+    }
+
+    /// Requesting a box larger than the source with lock on should not upscale
+    /// (ratio >= 1 short-circuits to original dimensions) — unchanged legacy behavior.
+    #[test]
+    fn no_upscale_when_target_box_is_not_smaller_with_lock_on() {
+        let (w, h) = compute_target_dimensions(400, 300, 4000, 4000, true);
+        assert_eq!((w, h), (400, 300));
+    }
+
+    /// Lock off but target equals the original size: exact mode still requested,
+    /// dimensions simply come out unchanged.
+    #[test]
+    fn exact_mode_matching_original_size_is_a_no_op() {
+        let (w, h) = compute_target_dimensions(400, 300, 400, 300, false);
+        assert_eq!((w, h), (400, 300));
     }
 }
 

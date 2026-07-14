@@ -79,7 +79,7 @@ pub async fn read_exif(data_url: String) -> Result<ExifInfo> {
 pub async fn strip_exif(data_url: String, quality: Option<u8>) -> Result<ExifResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let (img, format, _) = decode(&data_url)?;
-        let quality = quality.unwrap_or(95).clamp(1, 100);
+        let quality = quality.unwrap_or(100).clamp(1, 100);
 
         let mut buf = Cursor::new(Vec::new());
         encode_image_to_writer(&img, &mut buf, &format, quality)?;

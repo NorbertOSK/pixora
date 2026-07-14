@@ -12,8 +12,6 @@ import {
 const UPDATE_NOTICE_STORAGE_KEY = "pixora-update-notice";
 const REQUEST_TIMEOUT_MS = 3000;
 
-let startupCheckPromise: Promise<UpdateCheckResult> | null = null;
-
 export type UpdateCheckResult = {
   hasUpdate: boolean;
   currentVersion: string;
@@ -118,11 +116,7 @@ export function useUpdateCheck() {
 
     let active = true;
 
-    if (!startupCheckPromise) {
-      startupCheckPromise = runStartupCheck();
-    }
-
-    startupCheckPromise
+    runStartupCheck()
       .then((result) => {
         if (!active || !result.hasUpdate || !result.latestVersion || !result.releaseUrl) {
           return;

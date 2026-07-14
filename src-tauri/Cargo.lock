@@ -3296,6 +3296,7 @@ name = "pixora"
 version = "1.2.0"
 dependencies = [
  "base64 0.22.1",
+ "bytemuck",
  "dirs 5.0.1",
  "image",
  "imagequant",
