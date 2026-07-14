@@ -4,6 +4,12 @@
   "version": "1.2.0",
   "license": "MIT",
   "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "protobufjs"
+    ]
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
